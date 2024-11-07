@@ -1,0 +1,161 @@
+Cisco Nexus1
+
+!Enable the features needed to run VXLAN
+feature ospf
+feature pim
+feature nv overlay
+feature vn-segment-vlan-based
+
+!Create the underlay network routing protocol
+router ospf 10
+exit
+
+!Configure the vlan and add it to the vni segment
+vlan 1000
+vn-segment 5000
+exit
+
+!Modify the MTU size
+system jumbomtu 9216
+
+!Enable the VXLAN scale for large-scale environments
+system routing template-vxlan-scale
+
+!Save the configuration and Reboot the device
+copy running-config startup-config
+reboot
+
+!Configure the underlay network
+interface eth 1/49 
+ip address 10.10.10.1/30 
+ip router ospf 10 area 0
+ip pim sparse-mode
+no shut
+
+!Test the peering connectivity
+ping 10.10.10.2 source 10.10.10.1 
+
+!Check if the neighbor adjacency is UP
+sh ip ospf neighbor
+
+! Configure the port facing the client
+interface eth1/1
+description laptop1
+switchport
+switchport access vlan 1000
+no shut
+
+!Create loopback interface to be used as the Rendezvous Point in the Multicast Topology. VTEP also gets it's IP address from the loopback interface.
+interface loopback0 
+ip address 1.1.1.1/32
+ip pim sparse-mode
+ip router ospf 10 area 0
+
+!Create loopback interface to be used as the Rendezvous Point in Anycast Topology.
+interface loopback1
+ip address 3.3.3.3/32
+ip pim sparse-mode
+ip router ospf 10 area 0
+
+!Check if the loopback interface of the other device is reachable.
+ping 2.2.2.2 source 1.1.1.1 
+
+!Configure the Rendezvous Point Address
+ip rp-address 3.3.3.3 gorup-list 224.0.0.0/4
+ip pim anycast-rp 3.3.3.3 1.1.1.1
+ip pim anycast-rp 3.3.3.3 2.2.2.2
+
+!Configure the VTEP/NVE Interface
+interface nve1
+no shutdown
+source-interface loopback 0
+member vni 5000 mcast-group 230.1.1.1
+
+!Verify NVE Peers
+show nve peers !you will only see this after traffic is generated to reach the peer
+show nve vni !check the state of the nve
+show nve interfaces
+
+
+
+
+
+
+
+Cisco Nexus2
+
+!Enable the features needed to run VXLAN
+feature ospf
+feature pim
+feature nv overlay
+feature vn-segment-vlan-based
+
+!Create the underlay network routing protocol
+router ospf 10
+exit
+
+!Configure the vlan and add it to the vni segment
+vlan 1000
+vn-segment 5000
+exit
+
+!Modify the MTU size
+system jumbomtu 9216
+
+!Enable the VXLAN scale for large-scale environments
+system routing template-vxlan-scale
+
+!Save the configuration and Reboot the device
+copy running-config startup-config
+reboot
+
+!Configure the underlay network
+interface eth 1/49
+ip address 10.10.10.2/30
+ip router ospf 10 area 0
+ip pim sparse-mode
+no shut
+
+!Test the peering connectivity
+ping 10.10.10.1 source 10.10.10.2
+
+!Check if the neighbor adjacency is UP
+sh ip ospf neighbor !!check if the ospf neighborship is up
+
+! Configure the port facing the client
+interface eth1/1
+description laptop2
+switchport
+switchport access vlan 1000
+no shut
+
+!Create loopback interface to be used as the Rendezvous Point in the Multicast Topology. VTEP also gets it's IP address from the loopback interface.
+interface loopback0 
+ip address 2.2.2.2/32
+ip pim sparse-mode
+ip router ospf 10 area 0
+
+!Create loopback interface to be used as the Rendezvous Point in Anycast Topology.
+interface loopback1
+ip address 3.3.3.3/32
+ip pim sparse-mode
+ip router ospf 10 area 0
+
+!Check if the loopback interface of the other device is reachable.
+ping 1.1.1.1 source 2.2.2.2
+
+!Configure the Rendezvous Point Address
+ip rp-address 3.3.3.3 gorup-list 224.0.0.0/4
+ip pim anycast-rp 3.3.3.3 1.1.1.1
+ip pim anycast-rp 3.3.3.3 2.2.2.2
+
+!Configure the VTEP/NVE Interface
+interface nve1
+no shutdown
+source-interface loopback 0
+member vni 5000 mcast-group 230.1.1.1
+
+!Verify NVE Peers
+show nve peers !you will only see this after traffic is generated to reach the peer
+show nve vni !check the state of the nve
+show nve interfaces
